@@ -1,0 +1,269 @@
+/* src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* --- 1. THEME DICTIONARY --- */
+/* Default Light (Ocean Blue) */
+:root {
+  --bg-primary: #f0f4f8;
+  --bg-surface: #ffffff;
+  --text-main: #102a43;
+  --text-muted: #627d98;
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --border-color: #d9e2ec;
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Theme: Emerald */
+[data-theme="emerald"] {
+  --bg-primary: #ecfdf5;
+  --bg-surface: #ffffff;
+  --text-main: #064e3b;
+  --text-muted: #059669;
+  --accent-primary: #10b981;
+  --accent-hover: #059669;
+  --border-color: #a7f3d0;
+}
+
+/* Theme: Midnight Purple (Dark) */
+[data-theme="midnight"] {
+  --bg-primary: #0f172a;
+  --bg-surface: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-primary: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --border-color: #334155;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+/* Theme: Sunset */
+[data-theme="sunset"] {
+  --bg-primary: #fff7ed;
+  --bg-surface: #ffffff;
+  --text-main: #431407;
+  --text-muted: #9a3412;
+  --accent-primary: #f97316;
+  --accent-hover: #ea580c;
+  --border-color: #fed7aa;
+}
+
+/* --- 2. GLOBAL RESET --- */
+* {
+  box-sizing: border-box; margin: 0; padding: 0;
+}
+
+body, html, #root {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  transition: background-color 0.4s ease, color 0.4s ease;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1400px; margin: 0 auto; padding: 20px;
+}
+
+/* --- 3. NAVIGATION & THEME PICKER --- */
+.navbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 30px; background-color: var(--bg-surface);
+  border: 1px solid var(--border-color); border-radius: 12px;
+  box-shadow: var(--card-shadow); margin-bottom: 30px;
+  transition: all 0.3s ease;
+}
+
+.nav-links {
+  display: flex; gap: 25px; align-items: center;
+}
+
+.nav-links a {
+  text-decoration: none; font-weight: 500; color: var(--text-muted);
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-links a:hover {
+  color: var(--accent-primary);
+  transform: translateY(-2px); /* Slight lift on hover */
+}
+
+/* Theme Selector Circles */
+.theme-picker {
+  display: flex; gap: 10px; align-items: center;
+  padding-left: 20px; border-left: 2px solid var(--border-color);
+}
+
+.theme-dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-dot:hover {
+  transform: scale(1.2); /* Pop up on hover */
+}
+
+/* CLICK EFFECT: Squish down when actively pressed */
+.theme-dot:active {
+  transform: scale(0.85); 
+}
+
+.theme-dot.active {
+  border-color: var(--text-main);
+  transform: scale(1.1);
+}
+
+/* --- 4. CARDS & INTERACTIVE SELECTION --- */
+.card {
+  background-color: var(--bg-surface); padding: 30px;
+  border-radius: 16px; border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow); transition: all 0.3s ease;
+}
+
+.notes-list-item {
+  padding: 20px; border: 2px solid var(--border-color);
+  border-radius: 12px; margin-bottom: 15px;
+  background-color: var(--bg-primary);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* Hover Effect for items */
+.notes-list-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+  border-color: var(--accent-primary);
+}
+
+/* CLICK EFFECT: Squish down when actively pressed */
+.notes-list-item:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.notes-list-item a {
+  display: inline-block; text-decoration: none; font-weight: 500;
+  padding: 8px 16px; border-radius: 6px;
+  background-color: var(--border-color); color: var(--accent-primary);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.notes-list-item a:active {
+  transform: scale(0.95);
+}
+
+/* --- 5. BUTTON EFFECTS --- */
+.submit-btn {
+  background-color: var(--accent-primary); color: #ffffff;
+  border: none; padding: 14px; cursor: pointer;
+  border-radius: 8px; width: 100%; font-weight: 600;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.submit-btn:hover {
+  background-color: var(--accent-hover);
+}
+
+/* CLICK EFFECT: Squish down */
+.submit-btn:active {
+  transform: scale(0.96);
+}
+
+/* Form Inputs */
+.form-group input, .form-group select {
+  width: 100%; padding: 12px; background-color: var(--bg-primary);
+  color: var(--text-main); border: 2px solid var(--border-color);
+  border-radius: 8px; transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group input:focus, .form-group select:focus {
+  outline: none; border-color: var(--accent-primary);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+}
+/* --- 6. FILTER CHIPS (Pills) --- */
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.filter-chip {
+  padding: 8px 18px;
+  border-radius: 50px;
+  border: 2px solid var(--border-color);
+  background-color: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-main);
+  transform: translateY(-2px);
+}
+
+.filter-chip.active {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* --- 7. QUIZ INTERFACE --- */
+.quiz-container {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 25px;
+  margin-top: 20px;
+}
+
+.quiz-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 15px 20px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quiz-option:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  background-color: var(--bg-primary);
+}
+
+/* Quiz States */
+.quiz-option.selected {
+  border-color: var(--accent-primary);
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.quiz-option.correct {
+  border-color: #10b981; /* Green */
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+}
+
+.quiz-option.wrong {
+  border-color: #ef4444; /* Red */
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #991b1b;
+}
+
+.solution-box {
+  margin-top: 20px;
+  padding: 15px;
+  border-left: 4px solid var(--accent-primary);
+  background-color: var(--bg-surface);
+  border-radius: 0 8px 8px 0;
+}
