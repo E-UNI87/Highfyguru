@@ -267,3 +267,107 @@ body, html, #root {
   background-color: var(--bg-surface);
   border-radius: 0 8px 8px 0;
 }
+/* Guidance Page Layout */
+.guidance-layout {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.guidance-feed {
+  flex: 7.5; /* Takes up about 75% of the screen */
+}
+
+.guidance-sidebar {
+  flex: 2.5; /* Takes up about 25% of the screen */
+  position: sticky;
+  top: 90px; /* Stays on screen as you scroll past it */
+}
+
+/* Post Animations & Hover Effects */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.post-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  animation: fadeInUp 0.5s ease-out forwards;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.post-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+}
+
+.interaction-bar {
+  display: flex;
+  gap: 15px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-color);
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.2s;
+}
+
+.action-btn:hover { color: var(--accent-primary); }
+
+/* Make it stack on mobile phones */
+@media (max-width: 768px) {
+  .guidance-layout { flex-direction: column; }
+  .guidance-sidebar { position: static; width: 100%; }
+}
+/* Booking Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--bg-primary);
+  padding: 30px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 450px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  border: 1px solid var(--border-color);
+}
+
+/* Comment Section Styles */
+.comments-section {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px dashed var(--border-color);
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.comment-bubble {
+  background-color: var(--bg-secondary);
+  padding: 10px 15px;
+  border-radius: 18px;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  display: inline-block;
+  width: fit-content;
+  max-width: 90%;
+}
