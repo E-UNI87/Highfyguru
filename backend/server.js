@@ -305,6 +305,56 @@ app.get('/api/questions/:category', async (req, res) => {
 });
 
 /* =========================================
+   GK TESTS SCHEMA & ROUTES
+========================================= */
+const GKTestSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  type: { type: String, enum: ['daily', 'monthly'], required: true },
+  date: { type: Date, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const GKTest = mongoose.model('GKTest', GKTestSchema);
+
+// GET all GK Tests (for students)
+app.get('/api/gk-tests', async (req, res) => {
+  try {
+    const allTests = await GKTest.find().sort({ date: -1 });
+    
+    const daily = allTests.filter(t => t.type === 'daily');
+    const monthly = allTests.filter(t => t.type === 'monthly');
+    
+    res.json({
+      daily: daily,
+      monthly: monthly,
+      previous: [] // This would be populated from user test history in a full implementation
+    });
+  } catch (error) {
+    console.error("Fetch GK Tests Error:", error);
+    res.status(500).json({ error: 'Failed to fetch tests.' });
+  }
+});
+
+// POST create new GK Test (for admins)
+app.post('/api/admin/gk-tests', async (req, res) => {
+  try {
+    const { title, type, date } = req.body;
+    
+    if (!title || !type || !date) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+    
+    const newTest = new GKTest({ title, type, date: new Date(date) });
+    await newTest.save();
+    
+    res.status(201).json({ success: true, message: 'GK Test created successfully!', test: newTest });
+  } catch (error) {
+    console.error("Create GK Test Error:", error);
+    res.status(500).json({ error: 'Failed to create GK test.' });
+  }
+});
+
+/* =========================================
    SERVER STARTUP
 ========================================= */
 const PORT = process.env.PORT || 5000;
