@@ -413,9 +413,9 @@ function TestsPage() {
           {category === 'G.K' && (
             <div style={{ marginTop: '20px', padding: '15px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px' }}>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '15px' }}>Want to explore different test options?</p>
-              <button onClick={() => window.location.href = '/#/gk-tests'} className="submit-btn" style={{ width: '100%', backgroundColor: '#f97316', marginBottom: '15px' }}>
+              <Link to="/gk-tests" className="submit-btn" style={{ width: '100%', backgroundColor: '#f97316', marginBottom: '15px', display: 'block', textAlign: 'center', textDecoration: 'none' }}>
                 📅 Browse GK Test Options
-              </button>
+              </Link>
             </div>
           )}
           
@@ -895,6 +895,11 @@ function AdminPage() {
   const [qCorrect, setQCorrect] = useState('');
   const [qExplanation, setQExplanation] = useState('');
 
+  // 6. GK Test Upload States
+  const [gkTestTitle, setGkTestTitle] = useState('');
+  const [gkTestType, setGkTestType] = useState('daily'); // daily or monthly
+  const [gkTestDate, setGkTestDate] = useState('');
+
   // Fetch dynamic lists on load
   useEffect(() => {
     fetchDynamicData();
@@ -1028,6 +1033,37 @@ function AdminPage() {
         setQText(''); setQOptions(['', '', '', '']); setQCorrect(''); setQExplanation('');
       }
     } catch (err) { console.error(err); }
+  };
+
+  // GK Test Upload Handler
+  const handleGKTestSubmit = async (e) => {
+    e.preventDefault();
+    if (!gkTestTitle || !gkTestDate) {
+      return alert("Please fill in all fields for GK test!");
+    }
+
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/gk-tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: gkTestTitle, 
+          type: gkTestType,
+          date: gkTestDate
+        })
+      });
+      if (res.ok) {
+        alert(`${gkTestType === 'daily' ? 'Daily' : 'Monthly'} GK test uploaded successfully!`);
+        setGkTestTitle('');
+        setGkTestType('daily');
+        setGkTestDate('');
+      } else {
+        alert("Failed to upload GK test.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error uploading GK test.");
+    }
   };
 
   return (
@@ -1213,15 +1249,60 @@ function AdminPage() {
         </form>
       </div>
 
+      {/* GK Test Upload Section */}
+      <div className="card" style={{ gridColumn: '1 / -1', marginTop: '20px', backgroundColor: '#f9731615', borderLeft: '4px solid #f97316' }}>
+        <h3 style={{ color: '#f97316' }}>📅 Create Daily & Monthly GK Tests</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '15px' }}>Upload daily challenges and monthly mock exams that students can take from the GK Test page.</p>
+        <form onSubmit={handleGKTestSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+            <div className="form-group">
+              <label>Test Title:</label>
+              <input 
+                type="text" 
+                value={gkTestTitle} 
+                onChange={(e) => setGkTestTitle(e.target.value)} 
+                required 
+                placeholder="e.g., Daily GK Challenge #25" 
+              />
+            </div>
+            <div className="form-group">
+              <label>Test Type:</label>
+              <select value={gkTestType} onChange={(e) => setGkTestType(e.target.value)}>
+                <option value="daily">Daily Challenge (5 questions)</option>
+                <option value="monthly">Monthly Mock Exam (60 questions)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Date:</label>
+              <input 
+                type="date" 
+                value={gkTestDate} 
+                onChange={(e) => setGkTestDate(e.target.value)} 
+                required 
+              />
+            </div>
+          </div>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '15px' }}>
+            ℹ️ This test will appear in the GK Test page. Make sure you've added questions to the G.K category first!
+          </p>
+          <button type="submit" className="submit-btn" style={{ backgroundColor: '#f97316', marginTop: '15px' }}>
+            📤 Upload GK Test
+          </button>
+        </form>
+      </div>
+
     </div>
   );
 }
 
 /* =========================================
-   G.K TEST OPTIONS PAGE
+   G.K TEST DASHBOARD PAGE
 ========================================= */
 function GKTestPage() {
   const navigate = useNavigate();
+  const [dailyTests, setDailyTests] = useState([]);
+  const [monthlyTests, setMonthlyTests] = useState([]);
+  const [previousTests, setPreviousTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [testStarted, setTestStarted] = useState(false);
   const [questions, setQuestions] = useState([]);
@@ -1230,58 +1311,56 @@ function GKTestPage() {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [testCompleted, setTestCompleted] = useState(false);
 
-  const testOptions = [
-    {
-      id: 'daily',
-      title: '⏰ Daily GK Challenge',
-      description: 'Quick 5-minute test with 5 questions. Perfect for daily practice!',
-      icon: '📅',
-      color: '#3b82f6',
-      duration: 300,
-      questionCount: 5
-    },
-    {
-      id: 'weekly',
-      title: '📅 Weekly Assessment',
-      description: 'Comprehensive 20-minute test with 20 questions.',
-      icon: '📊',
-      color: '#10b981',
-      duration: 1200,
-      questionCount: 20
-    },
-    {
-      id: 'monthly',
-      title: '🏆 Monthly Mock Exam',
-      description: 'Full-length 60-minute test with 60 questions. Complete mock exam experience.',
-      icon: '🎯',
-      color: '#f97316',
-      duration: 3600,
-      questionCount: 60
+  useEffect(() => {
+    loadTests();
+  }, []);
+
+  const loadTests = async () => {
+    try {
+      // Try to fetch tests from backend (if admin has uploaded them)
+      const res = await fetch('http://localhost:5000/api/gk-tests');
+      if (res.ok) {
+        const data = await res.json();
+        setDailyTests(data.daily || []);
+        setMonthlyTests(data.monthly || []);
+        setPreviousTests(data.previous || []);
+      }
+    } catch (err) {
+      console.error("Error fetching tests:", err);
+      // Use sample data if backend not available
+      setSampleData();
     }
-  ];
+  };
 
-  const previousTests = [
-    { month: 'May 2026', score: '42/50', date: '2026-05-15', difficulty: 'Hard' },
-    { month: 'April 2026', score: '38/50', date: '2026-04-10', difficulty: 'Medium' },
-    { month: 'March 2026', score: '45/50', date: '2026-03-20', difficulty: 'Medium' }
-  ];
+  const setSampleData = () => {
+    setDailyTests([
+      { id: 1, title: 'Daily GK Challenge #1', date: '2026-06-19', questions: 5 },
+      { id: 2, title: 'Daily GK Challenge #2', date: '2026-06-18', questions: 5 }
+    ]);
+    setMonthlyTests([
+      { id: 1, title: 'June 2026 Monthly Exam', date: '2026-06-01', questions: 60 },
+      { id: 2, title: 'May 2026 Monthly Exam', date: '2026-05-01', questions: 60 }
+    ]);
+    setPreviousTests([
+      { id: 1, title: 'Daily GK #20', score: 4, total: 5, date: '2026-06-18', percentage: 80 },
+      { id: 2, title: 'May Monthly', score: 42, total: 60, date: '2026-05-15', percentage: 70 },
+      { id: 3, title: 'Daily GK #19', score: 5, total: 5, date: '2026-06-17', percentage: 100 }
+    ]);
+  };
 
-  const startTest = async (testType) => {
-    setSelectedTest(testType);
+  const startTest = async (testId, testType) => {
     try {
       const res = await fetch(`http://localhost:5000/api/questions/G.K`);
       if (res.ok) {
         let data = await res.json();
-        // Limit questions based on test type
-        const testOption = testOptions.find(t => t.id === testType);
-        data = data.slice(0, testOption.questionCount);
         
         if (data.length === 0) {
           return alert("No questions available for this test. Please check back later!");
         }
         
+        setSelectedTest({ id: testId, type: testType });
         setQuestions(data);
-        setTimeLeft(testOption.duration);
+        setTimeLeft(data.length * 60);
         setSelectedAnswers({});
         setCurrentIndex(0);
         setTestStarted(true);
@@ -1328,146 +1407,183 @@ function GKTestPage() {
   };
 
   const formatTime = () => {
-    const hours = Math.floor(timeLeft / 3600);
-    const minutes = Math.floor((timeLeft % 3600) / 60);
+    const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    if (hours > 0) {
-      return `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    }
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
-  const downloadReport = (test) => {
-    const element = document.createElement('a');
-    const file = new Blob([`Test Report\n\n${test.month}\nScore: ${test.score}\nDifficulty: ${test.difficulty}\nDate: ${test.date}`], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = `GK-Test-${test.month}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
-  // SCREEN 1: Test Selection
+  // SCREEN 1: Dashboard
   if (!testStarted && !testCompleted && selectedTest === null) {
     return (
-      <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <div className="card" style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 style={{ fontSize: '2rem', marginBottom: '10px' }}>🧠 General Knowledge Tests</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>Choose your test format and start practicing!</p>
+          <p style={{ color: 'var(--text-muted)' }}>Select a test to practice and improve your GK knowledge</p>
         </div>
 
-        {/* Test Options Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '50px' }}>
-          {testOptions.map((test) => (
-            <div
-              key={test.id}
-              style={{
-                padding: '25px',
-                backgroundColor: `${test.color}15`,
-                border: `2px solid ${test.color}`,
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                textAlign: 'center',
-                ':hover': { transform: 'translateY(-5px)' }
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-5px)';
-                e.currentTarget.style.boxShadow = `0 10px 25px ${test.color}30`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>{test.icon}</div>
-              <h3 style={{ marginBottom: '10px', color: test.color }}>{test.title}</h3>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '15px' }}>{test.description}</p>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '15px' }}>
-                <span style={{ padding: '5px 10px', backgroundColor: `${test.color}20`, borderRadius: '20px', fontSize: '0.85rem', color: test.color, fontWeight: 'bold' }}>⏱️ {test.duration / 60}m</span>
-                <span style={{ padding: '5px 10px', backgroundColor: `${test.color}20`, borderRadius: '20px', fontSize: '0.85rem', color: test.color, fontWeight: 'bold' }}>📝 {test.questionCount}q</span>
-              </div>
-              <button
-                onClick={() => startTest(test.id)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: test.color,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  fontWeight: 'bold',
+        {/* Daily Tests Section */}
+        <div style={{ marginBottom: '50px' }}>
+          <h3 style={{ marginBottom: '20px', paddingBottom: '10px', borderBottom: '2px solid #3b82f6' }}>
+            ⏰ Daily Challenges
+          </h3>
+          {dailyTests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px' }}>
+              <p style={{ color: 'var(--text-muted)' }}>No daily tests available. Admin can upload daily tests from the admin panel.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
+              {dailyTests.map((test) => (
+                <div key={test.id} style={{
+                  padding: '20px',
+                  backgroundColor: '#3b82f615',
+                  border: '2px solid #3b82f6',
+                  borderRadius: '10px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.9';
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 5px 15px #3b82f630';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                }}
-              >
-                Start Test
-              </button>
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}>
+                  <h4 style={{ marginBottom: '10px', color: '#3b82f6' }}>{test.title}</h4>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+                    📝 {test.questions} Questions | 📅 {test.date}
+                  </p>
+                  <button
+                    onClick={() => startTest(test.id, 'daily')}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    Start Test
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+        </div>
+
+        {/* Monthly Tests Section */}
+        <div style={{ marginBottom: '50px' }}>
+          <h3 style={{ marginBottom: '20px', paddingBottom: '10px', borderBottom: '2px solid #f97316' }}>
+            🏆 Monthly Mock Exams
+          </h3>
+          {monthlyTests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px' }}>
+              <p style={{ color: 'var(--text-muted)' }}>No monthly tests available. Admin can upload monthly tests from the admin panel.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
+              {monthlyTests.map((test) => (
+                <div key={test.id} style={{
+                  padding: '20px',
+                  backgroundColor: '#f9731615',
+                  border: '2px solid #f97316',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 5px 15px #f9731630';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}>
+                  <h4 style={{ marginBottom: '10px', color: '#f97316' }}>{test.title}</h4>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+                    📝 {test.questions} Questions | 📅 {test.date}
+                  </p>
+                  <button
+                    onClick={() => startTest(test.id, 'monthly')}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: '#f97316',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    Start Test
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Previous Tests Section */}
-        <div style={{ marginTop: '50px' }}>
-          <h3 style={{ marginBottom: '20px', paddingBottom: '10px', borderBottom: '2px solid var(--border-color)' }}>📊 Your Previous Tests</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
-            {previousTests.map((test, idx) => (
-              <div key={idx} style={{
-                padding: '20px',
-                backgroundColor: 'var(--bg-secondary)',
-                borderRadius: '10px',
-                border: '1px solid var(--border-color)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>{test.month}</p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                    Score: <span style={{ color: '#10b981', fontWeight: 'bold' }}>{test.score}</span>
-                  </p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    Difficulty: <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{test.difficulty}</span>
-                  </p>
+        <div>
+          <h3 style={{ marginBottom: '20px', paddingBottom: '10px', borderBottom: '2px solid #10b981' }}>
+            📊 Your Previous Tests
+          </h3>
+          {previousTests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px' }}>
+              <p style={{ color: 'var(--text-muted)' }}>You haven't taken any tests yet. Start with a daily or monthly test!</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {previousTests.map((test) => (
+                <div key={test.id} style={{
+                  padding: '15px',
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderLeft: `4px solid #10b981`,
+                  borderRadius: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 5px 0' }}>{test.title}</h4>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                      Score: <span style={{ color: '#10b981', fontWeight: 'bold' }}>{test.score}/{test.total}</span> | 
+                      Success Rate: <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{test.percentage}%</span> | 
+                      Date: {test.date}
+                    </p>
+                  </div>
+                  <button
+                    style={{
+                      padding: '8px 15px',
+                      backgroundColor: 'var(--accent-primary)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    📥 Download
+                  </button>
                 </div>
-                <button
-                  onClick={() => downloadReport(test)}
-                  style={{
-                    padding: '10px 15px',
-                    backgroundColor: 'var(--accent-primary)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: 'bold',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = '0.8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = '1';
-                  }}
-                >
-                  📥 Download
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div style={{ marginTop: '30px', textAlign: 'center' }}>
-          <button onClick={() => navigate('/tests')} className="submit-btn" style={{ width: 'auto', backgroundColor: 'var(--text-muted)' }}>
-            ← Back to All Tests
+        <div style={{ marginTop: '30px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+          <button onClick={() => navigate('/tests')} className="submit-btn" style={{ backgroundColor: 'var(--text-muted)' }}>
+            ← Back to Tests
           </button>
+          <Link to="/admin" style={{ textDecoration: 'none' }}>
+            <button className="submit-btn" style={{ backgroundColor: 'var(--accent-primary)' }}>
+              📤 Upload Tests (Admin)
+            </button>
+          </Link>
         </div>
       </div>
     );
@@ -1475,9 +1591,6 @@ function GKTestPage() {
 
   // SCREEN 2: Active Test
   if (testStarted && questions.length > 0) {
-    const testType = testOptions.find(t => t.id === selectedTest);
-    const testColor = testType?.color || '#3b82f6';
-
     return (
       <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div style={{
@@ -1486,39 +1599,19 @@ function GKTestPage() {
           alignItems: 'center',
           marginBottom: '20px',
           paddingBottom: '15px',
-          borderBottom: `3px solid ${testColor}`
+          borderBottom: '2px solid var(--accent-primary)'
         }}>
-          <div>
-            <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{testType?.title}</span>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '5px 0 0 0' }}>Question {currentIndex + 1} of {questions.length}</p>
-          </div>
+          <span style={{ fontWeight: 'bold' }}>Question {currentIndex + 1} of {questions.length}</span>
           <span style={{
-            color: timeLeft < 60 ? '#ef4444' : testColor,
+            color: timeLeft < 60 ? '#ef4444' : 'var(--accent-primary)',
             fontWeight: 'bold',
-            fontSize: '1.3rem',
+            fontSize: '1.2rem',
             backgroundColor: 'var(--bg-secondary)',
-            padding: '10px 20px',
+            padding: '8px 15px',
             borderRadius: '20px'
           }}>
             ⏱️ {formatTime()}
           </span>
-        </div>
-
-        <div style={{ marginBottom: '30px' }}>
-          <div style={{
-            width: '100%',
-            height: '8px',
-            backgroundColor: 'var(--bg-secondary)',
-            borderRadius: '10px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: `${((currentIndex + 1) / questions.length) * 100}%`,
-              height: '100%',
-              backgroundColor: testColor,
-              transition: 'width 0.3s ease'
-            }}></div>
-          </div>
         </div>
 
         <h4 style={{ fontSize: '1.1rem', margin: '20px 0 15px 0' }}>{questions[currentIndex].questionText}</h4>
@@ -1531,19 +1624,18 @@ function GKTestPage() {
                 key={i}
                 onClick={() => handleOptionSelect(opt)}
                 style={{
-                  padding: '15px',
+                  padding: '12px',
                   textAlign: 'left',
-                  borderRadius: '10px',
-                  border: `2px solid ${isSelected ? testColor : 'var(--border-color)'}`,
-                  backgroundColor: isSelected ? `${testColor}15` : 'var(--bg-secondary)',
+                  borderRadius: '8px',
+                  border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                  backgroundColor: isSelected ? 'var(--bg-secondary)' : 'transparent',
                   cursor: 'pointer',
                   fontSize: '1rem',
                   color: 'var(--text-main)',
-                  fontWeight: isSelected ? 'bold' : 'normal',
-                  transition: 'all 0.2s ease'
+                  fontWeight: isSelected ? 'bold' : 'normal'
                 }}
               >
-                <span style={{ color: testColor, fontWeight: 'bold', marginRight: '10px' }}>
+                <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', marginRight: '10px' }}>
                   {String.fromCharCode(65 + i)}.
                 </span>
                 {opt}
@@ -1552,58 +1644,29 @@ function GKTestPage() {
           })}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <button
             disabled={currentIndex === 0}
             onClick={() => setCurrentIndex(p => p - 1)}
-            style={{
-              padding: '12px 25px',
-              backgroundColor: currentIndex === 0 ? 'var(--text-muted)' : testColor,
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              opacity: currentIndex === 0 ? 0.5 : 1
-            }}
+            className="submit-btn"
+            style={{ width: 'auto', opacity: currentIndex === 0 ? 0.5 : 1 }}
           >
             ← Previous
           </button>
 
-          <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
-            {currentIndex + 1} / {questions.length}
-          </span>
-
           {currentIndex < questions.length - 1 ? (
             <button
               onClick={() => setCurrentIndex(p => p + 1)}
-              style={{
-                padding: '12px 25px',
-                backgroundColor: testColor,
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 'bold'
-              }}
+              className="submit-btn"
+              style={{ width: 'auto' }}
             >
               Next →
             </button>
           ) : (
             <button
               onClick={handleTestSubmit}
-              style={{
-                padding: '12px 25px',
-                backgroundColor: '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 'bold'
-              }}
+              className="submit-btn"
+              style={{ width: 'auto', backgroundColor: '#10b981' }}
             >
               Submit ✓
             </button>
@@ -1615,66 +1678,54 @@ function GKTestPage() {
 
   // SCREEN 3: Test Completed
   if (testCompleted) {
-    const testType = testOptions.find(t => t.id === selectedTest);
     const score = calculateScore();
     const percentage = Math.round((score / questions.length) * 100);
-    const testColor = testType?.color || '#3b82f6';
 
     return (
       <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div style={{
           textAlign: 'center',
-          padding: '40px',
+          padding: '30px',
           backgroundColor: 'var(--bg-secondary)',
           borderRadius: '12px',
           marginBottom: '30px'
         }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '20px' }}>🎉 Test Complete!</h2>
-          <div style={{
-            fontSize: '4rem',
-            fontWeight: 'bold',
-            color: testColor,
-            marginBottom: '10px'
-          }}>
+          <h2 style={{ fontSize: '2rem', marginBottom: '15px' }}>🎉 Test Complete!</h2>
+          <div style={{ fontSize: '3rem', color: 'var(--accent-primary)', fontWeight: 'bold', marginBottom: '10px' }}>
             {score} / {questions.length}
           </div>
           <div style={{
-            fontSize: '1.5rem',
-            color: percentage >= 70 ? '#10b981' : percentage >= 50 ? '#f97316' : '#ef4444',
-            marginBottom: '20px'
+            fontSize: '1.3rem',
+            color: percentage >= 70 ? '#10b981' : percentage >= 50 ? '#f97316' : '#ef4444'
           }}>
             {percentage}% Success Rate
           </div>
-          {percentage >= 70 && <p style={{ color: 'var(--text-muted)' }}>🌟 Excellent performance! Keep practicing!</p>}
-          {percentage >= 50 && percentage < 70 && <p style={{ color: 'var(--text-muted)' }}>👍 Good effort! Review the solutions and try again.</p>}
-          {percentage < 50 && <p style={{ color: 'var(--text-muted)' }}>💪 Don't worry! Practice makes perfect. Try again!</p>}
         </div>
 
-        <h3 style={{ marginBottom: '20px' }}>📋 Answer Review</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxHeight: '400px', overflowY: 'auto', marginBottom: '30px' }}>
+        <h3>📋 Answer Review</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px', maxHeight: '400px', overflowY: 'auto' }}>
           {questions.map((q, idx) => {
             const userAns = selectedAnswers[q._id];
             const isCorrect = userAns === q.correctOption;
             return (
               <div key={q._id} style={{
                 padding: '15px',
-                border: `2px solid ${isCorrect ? '#10b981' : '#ef4444'}`,
+                border: `1px solid ${isCorrect ? '#10b981' : '#ef4444'}`,
                 borderRadius: '8px',
                 backgroundColor: isCorrect ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>{isCorrect ? '✅' : '❌'}</span>
-                  <strong>Q{idx + 1}. {q.questionText}</strong>
-                </div>
-                <p style={{ color: isCorrect ? '#10b981' : '#ef4444', margin: '5px 0', fontSize: '0.95rem' }}>
-                  Your Answer: {userAns || '[Not Answered]'}
-                </p>
-                {!isCorrect && (
-                  <p style={{ color: '#10b981', margin: '5px 0', fontSize: '0.95rem' }}>
-                    Correct Answer: {q.correctOption}
+                <strong>Q{idx + 1}. {q.questionText}</strong>
+                <div style={{ margin: '10px 0', fontSize: '0.95rem' }}>
+                  <p style={{ color: isCorrect ? '#10b981' : '#ef4444', margin: '5px 0' }}>
+                    Your Answer: {userAns || '[Not Answered]'}
                   </p>
-                )}
-                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '10px', borderRadius: '5px', fontSize: '0.9rem', marginTop: '10px' }}>
+                  {!isCorrect && (
+                    <p style={{ color: '#10b981', margin: '5px 0' }}>
+                      Correct Answer: {q.correctOption}
+                    </p>
+                  )}
+                </div>
+                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '10px', borderRadius: '5px', fontSize: '0.9rem' }}>
                   <strong>💡 Solution:</strong> {q.explanation}
                 </div>
               </div>
@@ -1689,7 +1740,6 @@ function GKTestPage() {
               setTestCompleted(false);
             }}
             className="submit-btn"
-            style={{ backgroundColor: testColor }}
           >
             Take Another Test
           </button>
